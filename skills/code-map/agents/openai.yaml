@@ -1,0 +1,3 @@
+interface:
+  display_name: "Code Map"
+  short_description: "Map calls, directories, dependencies, and analytics"
