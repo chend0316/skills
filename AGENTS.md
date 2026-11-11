@@ -8,3 +8,5 @@ Use the following identity for every commit in this repository, including both t
 - Email `chendong0316@163.com`
 
 After modifying code-map scripts or HTML assets, run `python3 -m unittest discover -s skills/code-map/scripts -v`. Node.js is required for the interaction checks.
+
+Publish versions by creating and pushing Git tags. Do not create GitHub Release pages unless the user explicitly requests one.
