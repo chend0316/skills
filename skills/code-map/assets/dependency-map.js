@@ -157,7 +157,9 @@ function observabilityLabels(id, hidden = new Set()) {
 function pointLines(id, hidden = new Set()) {
   return observabilityTypes.flatMap(([type, label]) => hidden.has(type) ? [] :
     (nodes[id].observability?.[type] || []).map(point => [
-      label, id + ':' + point.line, point.call, point.event, point.level, point.tag, point.message
+      label, ...(type === 'analytics' ? [point.eventKey || 'key 待解析', point.eventDescription || '中文解释待确认'] : []),
+      id + ':' + point.line, point.call, point.event, point.level, point.tag, point.message,
+      type === 'analytics' && point.eventEvidence ? '说明来源：' + point.eventEvidence : ''
     ].filter(Boolean).join(' · ')));
 }
 const observationKey = type => 'observability:' + type;

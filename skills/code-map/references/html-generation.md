@@ -54,6 +54,14 @@ python3 scripts/generate_dependency_html.py dependencies.json -o dependencies.ht
 
 必填字段为 `root`、`entry`、`nodes`、`edges`。生成器同时支持入口子图和整目录模式；不负责扫描或验证源码。`title`、`revision`、`scope` 可选，但生成前应尽量补齐版本和扫描范围；未提供完整性说明时网页明确标记证据缺口。`entry` 必须是文件节点。文件节点可包含 `observability`，其 `analytics`（埋点）和 `logs`（日志）各为使用点数组。已核实无调用用空数组，证据不足用 `null`，缺少字段表示快照未提供。每个使用点包含正整数 `line` 和字符串 `call`，可选字符串 `event`、`level`、`tag`、`message`。例如 `{"logs":[{"line":42,"call":"Logger.info(TAG, template)","level":"INFO","tag":"Recording","message":"开始录音"}]}`。顶部数量按已记录使用点统计。旧快照的 `analyticsCallCount` 仍可用于文件行展示；有 `analytics` 明细时优先用明细。
 
+埋点记录另用字符串 `eventKey` 保存解析后的实际 key，`eventDescription` 保存中文解释，`eventEvidence` 保存定义/说明来源（文件和行号或文档位置）；`event` 保留原事件/指标表达式，不能用它冒充已解析 key。新扫描应补齐这些字段，解析口径见[可观测性使用点](directory-and-build-dependencies.md#可观测性使用点)。例如：
+
+```json
+{"line":125,"call":"mmPerfTracker.start(MmPerfMetric.SWITCH_FISHBONE_TO_WEBVIEW_LOAD)","event":"MmPerfMetric.SWITCH_FISHBONE_TO_WEBVIEW_LOAD","eventKey":"switch_fishbone_to_webview_load","eventDescription":"切到鱼骨图到 WebView 加载成功的耗时（仅首次加载）","eventEvidence":"framework/statistics/MmPerformanceTracker.ets:14"}
+```
+
+渲染顺序为 `埋点 · eventKey · eventDescription · 文件:行号 · call · event`，有 `eventEvidence` 时在末尾显示说明来源。旧快照缺少新字段仍能打开，但显示“key 待解析”“中文解释待确认”；生成器只展示输入，不自行翻译、读取源码或推测 key。补扫解释须从原快照对应版本核查，保存带来源的新快照，不能静默混入新版本源码。
+
 - `file` 节点身份必须是规范化的仓库相对 POSIX 路径，不能包含 `..`；相对展示路径由脚本计算，不作为身份输入。
 - `package`、`external` 节点用于包边界及未解析目标；所有边的端点必须存在，未解析目标也要建节点并保留 `status`，不能省略边。依赖源必须为文件节点。
 - `category` 指定引用类别，优先采用边上的值，其次节点上的值；旧快照会按文件/包/SDK 名称提供保守回退，不替代源码核查。`subtype`、`resourceKey`、`mapping`（字符串数组）、`cycle` 可保存资源类型、原符号、定义/变体位置和环证据。

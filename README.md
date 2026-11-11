@@ -6,7 +6,7 @@
 
 | 名称 | 功能 |
 | --- | --- |
-| [code-map](skills/code-map/SKILL.md) | 生成运行地图、目录结构图和源码地图，梳理源码依赖、资源使用点，以及埋点和日志。按需生成独立交互 HTML。 |
+| [code-map](skills/code-map/SKILL.md) | 默认生成独立交互式 HTML 源码地图，梳理源码依赖、资源使用点，以及埋点和日志；也支持明确指定的运行地图、目录结构图和纯文本输出。 |
 
 ## 安装
 
@@ -26,7 +26,8 @@ npx skills add chend0316/skills --skill code-map -a codex -a claude-code -g
 安装后可以直接描述任务，例如：
 
 - 使用 code-map，梳理这个按钮从点击到结果展示的运行地图。
-- 使用 code-map，分析这个目录的源码依赖、文案、图片和图标使用点，以及埋点和日志，生成交互式 HTML。
+- 使用 code-map，梳理录音尾窗业务场景的代码地图。（默认交付交互式 HTML 源码地图）
+- 使用 code-map，分析这个目录的源码依赖、文案、图片和图标使用点，以及埋点和日志。
 
 源码地图由 Agent 核查源码并整理快照。内置 Python 脚本读取快照 JSON 并生成 HTML。
 

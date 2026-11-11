@@ -1,25 +1,27 @@
 ---
 name: code-map
-description: Trace call chains with module-qualified calls, DI bindings, callbacks, and branches; show directory trees and source maps with compile dependencies and per-file analytics and logging sites for module extraction analysis, with interactive HTML on request. 适用于运行地图、目录结构图、源码地图，以及模块迁移和跨目录依赖排查。
+description: Generate interactive HTML source maps by default, with compile dependencies, resource references, and per-file analytics and logging sites; also support explicitly requested call-chain maps and directory trees. 适用于业务场景代码地图、源码依赖梳理、模块迁移和跨目录依赖排查。
 ---
 
 # Code Map
 
-从用户给出的入口、目录或迁移问题出发，输出可核查的运行地图、目录结构图或源码地图。默认只读；用户仅要求分析时不修改代码。
+从用户给出的入口、业务场景、目录或迁移问题出发，默认生成可核查的交互式 HTML 源码地图。默认只读分析源码；可以生成地图产物，用户仅要求分析时不修改被分析工程的代码。
 
 ## 选择地图
 
-- 运行地图（追踪调用、按钮行为、DI、回调和业务分支）：遵循下文的运行地图规则。
-- 目录层级、文件分布和目录展开/收起：读取 [目录与源码地图](references/directory-and-build-dependencies.md)，输出目录结构图。
-- 每个文件的埋点调用、文件或模块之间的编译依赖、折叠后的跨目录引用、模块能否迁走：读取同一参考，输出源码地图并核查依赖边界。
+- 默认选择源码地图：用户只说“代码地图”“梳理某业务场景”，或要求查看依赖、资源、埋点、日志及迁移边界时，读取 [目录与源码地图](references/directory-and-build-dependencies.md)，按目录与文件组织源码地图，核查依赖与使用点。业务场景用于确定相关文件和分析范围，不据此自动改为运行地图。
+- 用户明确要求调用链、运行流程、按钮行为、DI、回调或业务分支追踪时，选择运行地图，遵循下文的运行地图规则。
+- 用户明确要求目录层级或文件分布时，读取同一参考，输出目录结构图。
 
 按用户需要选择或组合视图，不默认输出三张图。以下节点命名、箭头、无路径要求及分支格式仅适用于运行地图；目录与源码地图使用参考中的文件路径与树形格式。目录不自动等于构建模块，二者须区分。
 
 ## 输出方式
 
-默认输出原始地图：使用 `text` 代码块，在声明的分析范围内完整展开，不添加 `[-]`、`[+]` 等展开状态标记，不为折叠交互裁剪节点。循环、重复引用及范围外终点仍按对应地图规则标注；原始地图不等于无边界递归。
+默认交付可本地打开的独立交互式 HTML 文件，无需用户额外说明“交互式”“可点击展开/收起”或“HTML 页面”。地图类型与输出方式分别选择：明确要求运行地图或目录结构图时，仍默认生成相应的交互式 HTML；仅当用户明确要求纯文本、不生成 HTML 或其它格式时，遵循其格式要求。
 
-只有用户明确要求“交互式”“可点击展开/收起”或“HTML 页面”等结果时，才读取 [交互式 HTML](references/interactive-html.md)，在同一份原始地图数据上生成可交互的 HTML 文件。源码地图网页优先使用 [生成脚本](scripts/generate_dependency_html.py)，将依赖 JSON 转成独立 HTML，输入格式见 [HTML 生成技巧](references/html-generation.md)。生成网页时，按该参考链接的 [HTML 生成技巧](references/html-generation.md) 实现数据与视图分离、路径渲染和验证。页面必须包含原始地图视图；交付 HTML 链接，不必在回复中重复整张文本地图，除非用户同时要求。用户只要求文本、目录图或源码地图时，不自动生成 HTML。
+生成 HTML 时读取 [交互式 HTML](references/interactive-html.md) 和 [HTML 生成技巧](references/html-generation.md)，在同一份已核查的原始地图数据上生成网页。源码地图网页优先使用 [生成脚本](scripts/generate_dependency_html.py)，输入格式见 HTML 生成技巧。按参考实现数据与视图分离、路径渲染和验证。页面必须包含原始地图视图；交付可点击的 HTML 文件链接，不必在回复中重复整张文本地图，除非用户同时要求。
+
+原始地图在声明的分析范围内完整展开，不添加 `[-]`、`[+]` 等展开状态标记，不为折叠交互裁剪节点。循环、重复引用及范围外终点仍按对应地图规则标注；原始地图不等于无边界递归。纯文本交付时使用 `text` 代码块；HTML 中的原始地图视图保留相同内容。
 
 交互式运行地图须遵循上述参考中的折叠总结与源码链接规则：收起时在尾部显示下游功能总结，展开时隐藏总结；所有可核查节点支持文件和行号跳转，普通调用节点指向当前链路中的调用处。
 
@@ -29,11 +31,11 @@ description: Trace call chains with module-qualified calls, DI bindings, callbac
 
 源码地图在声明的源码范围内同时梳理依赖与资源使用点。读取 [资源引用与分类](references/resources-and-categories.md)，逐处记录文案、图片、图标等的资源标识、源码位置、定义与未解析项。文本地图保留这些使用点；生成 HTML 时传入 `--include-resources`，在与“依赖类型”并列的“资源类型”中按使用点计数和筛选。仅修改网页交互时复用原 JSON；扩大范围或补扫资源时生成新的完整快照并记录版本。
 
-源码地图的“可观测性”与“依赖类型”“资源类型”并列，内置“埋点”和“日志”。识别项目上报及日志 API 和封装，按源码调用位置记录明细和每文件数量。口径见 [可观测性使用点](references/directory-and-build-dependencies.md#可观测性使用点)。
+源码地图的“可观测性”与“依赖类型”“资源类型”并列，内置“埋点”和“日志”。识别项目上报及日志 API 和封装，按源码调用位置记录明细和每文件数量。埋点明细统一以“埋点 · key · 中文解释”开头，再列源码位置、调用表达式和事件表达式；key 和含义须核实，无法确认时显式标记。口径见 [可观测性使用点](references/directory-and-build-dependencies.md#可观测性使用点)。
 
-## 运行地图输出格式
+## 运行地图原始格式
 
-地图使用 `text` 代码块。每个代码节点格式为 `【构建模块】类型.方法`；包括入口、接口、实现和回调。模块名须依据源码路径及构建配置确认，不要用包名或目录分类代替。无法确认时标 `【模块待确认】`，并在地图外简短说明缺少的证据。
+以下规则仅适用于运行地图；纯文本交付使用 `text` 代码块，默认 HTML 的原始地图视图使用相同格式。每个代码节点格式为 `【构建模块】类型.方法`；包括入口、接口、实现和回调。模块名须依据源码路径及构建配置确认，不要用包名或目录分类代替。无法确认时标 `【模块待确认】`，并在地图外简短说明缺少的证据。
 
 地图不写文件名、路径或行号。匿名回调写作 `类型.外层方法.{lambda}`；同一方法有多个时按源码出现顺序编号，如 `{lambda#2}`。
 

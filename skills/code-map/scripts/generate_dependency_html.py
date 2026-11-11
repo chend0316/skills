@@ -48,7 +48,8 @@ def validate_observability(identity, kind, groups):
         for point in points:
             if (not isinstance(point, dict) or type(point.get('line')) is not int or point['line'] < 1
                     or not isinstance(point.get('call'), str) or not point['call'].strip()
-                    or any(not isinstance(point.get(key, ''), str) for key in ('event', 'level', 'tag', 'message'))):
+                    or any(not isinstance(point.get(key, ''), str) for key in
+                           ('event', 'eventKey', 'eventDescription', 'eventEvidence', 'level', 'tag', 'message'))):
                 raise InputError(f'节点 {identity} 的可观测性记录须包含正整数行号和调用表达式')
 
 
