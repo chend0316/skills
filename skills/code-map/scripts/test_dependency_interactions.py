@@ -17,7 +17,7 @@ def fixture(directory=True):
     nodes[files[0]]['analyticsCallCount'] = 2
     nodes[files[3]]['analyticsCallCount'] = 0
     nodes[files[3]]['observability'] = {
-        'analytics': [{'line': 7, 'call': 'track(Start)', 'event': 'Start'}],
+        'analytics': [{'line': 7, 'call': 'track(Start)', 'event': 'Start', 'analyticsKind': 'report'}],
         'logs': [{'line': 8, 'call': 'logger.info(Start)', 'level': 'INFO'}],
     }
     nodes[resource] = {'kind': 'file', 'category': '资源文件'}
@@ -91,10 +91,10 @@ DIRECTORY_CHECK = r'''
 (async()=>{
 const page='module_a/panels/Page.ets';
 assert(file(page).children.some(e=>e.textContent==='埋点调用 2'),'directory file analytics badge');
-assert(raw.includes('Other.ets [埋点调用 1] [日志点 1]'),'detailed counts override legacy counts');
+assert(raw.includes('Other.ets [埋点上报 1] [日志点 1]'),'detailed counts override legacy counts');
 assert(raw.includes('Other.ets:8 · logger.info(Start)'),'raw includes log location and call');
 const observation = type => all(els.observabilityButtons).find(e=>e.attrs['data-observability-type']===type);
-assert(observation('logs').textContent==='日志(1)'&&observation('analytics').textContent==='埋点(1)','built-in observability counts');
+assert(observation('logs').textContent==='日志(1)'&&observation('analytics:report').textContent==='埋点上报(1)','built-in observability counts');
 const other = 'module_a/hidden/Other.ets';
 const logKey = 'observability:logs';
 assert(counter(file(other),logKey).textContent==='日志(1)','file log control');

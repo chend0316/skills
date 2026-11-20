@@ -40,16 +40,23 @@ def category_for(identity, node):
 def validate_observability(identity, kind, groups):
     if kind != 'file' or not isinstance(groups, dict) or groups.keys() - {'analytics', 'logs'}:
         raise InputError(f'节点 {identity} 的 observability 须为文件上的 analytics/logs 对象')
-    for points in groups.values():
+    for group, points in groups.items():
         if points is None:
             continue
         if not isinstance(points, list):
             raise InputError(f'节点 {identity} 的可观测性记录须为数组或 null')
         for point in points:
+            if isinstance(point, dict):
+                for key in ('reportingChain', 'upstreamEntries'):
+                    if key in point and (not isinstance(point[key], list) or any(not isinstance(v, str) for v in point[key])):
+                        raise InputError(f'节点 {identity} 的 {key} 须为已核实调用位置字符串数组')
+            if isinstance(point, dict) and 'analyticsKind' in point:
+                if group != 'analytics' or point['analyticsKind'] not in ('report', 'preparation', 'unknown'):
+                    raise InputError(f'节点 {identity} 的 analyticsKind 须为 analytics 使用点上的 report/preparation/unknown')
             if (not isinstance(point, dict) or type(point.get('line')) is not int or point['line'] < 1
                     or not isinstance(point.get('call'), str) or not point['call'].strip()
                     or any(not isinstance(point.get(key, ''), str) for key in
-                           ('event', 'eventKey', 'eventDescription', 'eventEvidence', 'level', 'tag', 'message'))):
+                           ('event', 'eventKey', 'eventDescription', 'eventEvidence', 'classificationEvidence', 'level', 'tag', 'message'))):
                 raise InputError(f'节点 {identity} 的可观测性记录须包含正整数行号和调用表达式')
 
 

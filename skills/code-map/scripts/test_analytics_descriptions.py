@@ -31,8 +31,8 @@ class AnalyticsDescriptionTests(unittest.TestCase):
             point = graph['nodes']['module_a/hidden/Other.ets']['observability']['analytics'][0]
             if enriched:
                 point.update(eventKey='start', eventDescription='开始录音', eventEvidence='Events.ets:12')
-            expected = ('埋点 · start · 开始录音' if enriched
-                        else '埋点 · key 待解析 · 中文解释待确认')
+            expected = ('埋点上报 · start · 开始录音' if enriched
+                        else '埋点上报 · key 待解析 · 中文解释待确认')
             checks = r'''
 const expected = EXPECTED;
 assert(raw.includes(expected + ' · module_a/hidden/Other.ets:7 · track(Start) · Start'), 'raw label order');
@@ -40,9 +40,9 @@ assert(labels().some(t=>t.startsWith(expected)), 'expanded file label');
 assert(expected.includes('key 待解析') || raw.includes('说明来源：Events.ets:12'), 'definition evidence retained');
 assert(labels().some(t=>t==='日志 · module_a/hidden/Other.ets:8 · logger.info(Start) · INFO'), 'log unchanged');
 toggle('module_a/hidden');
-counter(dir('module_a/hidden'),'observability:analytics').onclick();
+counter(dir('module_a/hidden'),'observability:analytics:report').onclick();
 assert(labels().some(t=>t.startsWith(expected)), 'collapsed directory label');
-const analytics=()=>all(els.observabilityButtons).find(e=>e.attrs['data-observability-type']==='analytics');
+const analytics=()=>all(els.observabilityButtons).find(e=>e.attrs['data-observability-type']==='analytics:report');
 analytics().onclick();assert(!labels().some(t=>t.startsWith(expected)), 'global analytics filter');
 analytics().onclick();assert(labels().some(t=>t.startsWith(expected)), 'restore selection');
 assert(els.raw.textContent===raw, 'raw unaffected');

@@ -6,9 +6,24 @@ const closed = new Set(), shownDirectoryCategories = new Map();
 const hiddenFileCategories = new Map(), hiddenCategories = new Set();
 const hiddenResourceTypes = new Set();
 const hiddenObservability = new Set();
-const observabilityTypes = [['analytics', '埋点'], ['logs', '日志']];
+let hideUnmatched = false;
+let matchingFiles = new Set(), matchingDirectories = new Set();
+const analyticsKinds = [['report', '埋点上报'], ['preparation', '埋点准备'], ['unknown', '埋点待分类']];
+const analyticsKind = point => point.analyticsKind || 'unknown';
+const observabilityTypes = [...analyticsKinds.map(([kind, label]) => ['analytics:' + kind, label]), ['logs', '日志']];
+function observationPoints(id, type) {
+  if (type.startsWith('analytics:')) return (nodes[id].observability?.analytics || []).filter(point =>
+    analyticsKind(point) === type.slice('analytics:'.length));
+  return nodes[id].observability?.[type] || [];
+}
+const observationHidden = (type, hidden = hiddenObservability) => hidden.has(type);
+const legacyAnalyticsCount = id => nodes[id].observability?.analytics === undefined &&
+  Number.isInteger(nodes[id].analyticsCallCount) ? nodes[id].analyticsCallCount : 0;
+const unknownObservationCoverage = type => Object.values(nodes).some(node => type === 'analytics:unknown'
+  ? node.observability?.analytics === null || (node.observability?.analytics === undefined && node.analyticsCallCount === null)
+  : type === 'logs' && node.observability?.logs === null);
 const observabilityCounts = new Map(observabilityTypes.map(([type]) => [
-  type, Object.values(nodes).reduce((count, node) => count + (node.observability?.[type]?.length || 0), 0)
+  type, Object.keys(nodes).reduce((count, id) => count + observationPoints(id, type).length + (type === 'analytics:unknown' ? legacyAnalyticsCount(id) : 0), 0)
 ]));
 const outgoing = new Map(), incoming = new Map();
 for (const edge of edges) {
@@ -144,23 +159,36 @@ function badge(row, text) {
   const span = document.createElement('span'); span.className = 'badge'; span.textContent = text; row.append(span);
 }
 function observabilityLabels(id, hidden = new Set()) {
-  const node = nodes[id];
-  return observabilityTypes.flatMap(([type, label]) => {
-    if (hidden.has(type)) return [];
-    const points = node.observability?.[type];
-    const count = points === undefined && type === 'analytics' ? node.analyticsCallCount
-      : points === null ? null : points?.length;
-    return count === undefined || count === 0 ? [] : [label + (type === 'analytics' ? '调用' : '点') +
-      (count === null ? '待确认' : ' ' + count)];
+  const node = nodes[id], labels = observabilityTypes.flatMap(([type, label]) => {
+    if (observationHidden(type, hidden)) return [];
+    const count = observationPoints(id, type).length;
+    return count ? [label + (type === 'logs' ? '点 ' : ' ') + count] : [];
   });
+  // Old aggregate-only snapshots have no evidence to assign a reporting/preparation subtype.
+  if (!hidden.has('analytics:unknown') && node.observability?.analytics === undefined && node.analyticsCallCount !== undefined && node.analyticsCallCount !== 0) {
+    labels.unshift('埋点调用' + (node.analyticsCallCount === null ? '待确认' : ' ' + node.analyticsCallCount));
+  }
+  if (!observationHidden('logs', hidden) && node.observability?.logs === null) labels.push('日志点待确认');
+  if (!hidden.has('analytics:unknown') && node.observability?.analytics === null) labels.push('埋点待分类待确认');
+  return labels;
 }
 function pointLines(id, hidden = new Set()) {
-  return observabilityTypes.flatMap(([type, label]) => hidden.has(type) ? [] :
-    (nodes[id].observability?.[type] || []).map(point => [
-      label, ...(type === 'analytics' ? [point.eventKey || 'key 待解析', point.eventDescription || '中文解释待确认'] : []),
-      id + ':' + point.line, point.call, point.event, point.level, point.tag, point.message,
-      type === 'analytics' && point.eventEvidence ? '说明来源：' + point.eventEvidence : ''
-    ].filter(Boolean).join(' · ')));
+  return observabilityTypes.flatMap(([type, label]) => observationHidden(type, hidden) ? [] :
+    observationPoints(id, type).map(point => {
+      if (type === 'analytics:preparation') return [label, point.eventDescription || '准备行为待确认',
+        id + ':' + point.line, point.call,
+        point.classificationEvidence ? '分类依据：' + point.classificationEvidence : '',
+        ...(point.upstreamEntries || []).map(entry => '上游入口：' + entry),
+        ...(point.reportingChain || []).map(step => '下游链路：' + step)
+      ].filter(Boolean).join(' · ');
+      return [label, ...(type === 'analytics:report' ? [point.eventKey || 'key 待解析', point.eventDescription || '中文解释待确认'] : []),
+        id + ':' + point.line, point.call, point.event, point.level, point.tag, point.message,
+        type === 'analytics:unknown' ? '分类待确认：缺少上报/准备行为证据' : '',
+        type === 'analytics:report' && point.eventEvidence ? '说明来源：' + point.eventEvidence : '',
+        type === 'analytics:report' && point.classificationEvidence ? '入口依据：' + point.classificationEvidence : '',
+        ...(type === 'analytics:report' ? (point.reportingChain || []).map(step => '上报链路：' + step) : [])
+      ].filter(Boolean).join(' · ');
+    }));
 }
 const observationKey = type => 'observability:' + type;
 const observationFiles = Object.keys(nodes).filter(id => nodes[id].observability);
@@ -174,9 +202,9 @@ function directoryObservationFiles(dir) {
 function localObservationPoints(row, id, label, files, isFile) {
   const hidden = new Set(hiddenObservability);
   for (const [type, name] of observabilityTypes) {
-    if (hidden.has(type)) continue;
+    if (observationHidden(type, hidden)) continue;
     const key = observationKey(type);
-    const count = files.reduce((sum, file) => sum + (nodes[file].observability?.[type]?.length || 0), 0);
+    const count = files.reduce((sum, file) => sum + (observationPoints(file, type).length), 0);
     if (count) localControl(row, id, label, key, name, count, isFile, '按源码使用点计数');
     if (!(isFile ? fileCategoryVisible(id, key) : directoryCategoryVisible(id, key))) hidden.add(type);
   }
@@ -204,12 +232,35 @@ function visibleGroups(es) {
   }
   return [...result].sort((a, b) => a[0].localeCompare(b[0], 'zh-CN'));
 }
+// Match against the original snapshot and global filters, never local visibility or DOM.
+function fileMatchesGlobals(id) {
+  if (out(id).some(globalEdgeAllowed)) return true;
+  if (observabilityTypes.some(([type]) => !observationHidden(type) && observationPoints(id, type).length)) return true;
+  const node = nodes[id];
+  // Missing coverage is not evidence of zero points; preserve explicit unknown records.
+  return (!observationHidden('analytics:unknown') &&
+    (node.observability?.analytics === null || (node.observability?.analytics === undefined &&
+      (node.analyticsCallCount === null || node.analyticsCallCount > 0)))) ||
+    (!observationHidden('logs') && node.observability?.logs === null);
+}
+function updateMatchingTree() {
+  matchingFiles = new Set(); matchingDirectories = new Set();
+  if (!hideUnmatched) return;
+  for (const id of MEMBERS) {
+    if (!fileMatchesGlobals(id)) continue;
+    matchingFiles.add(id);
+    const parts = id.split('/');
+    for (let i = 1; i < parts.length; i++) matchingDirectories.add(parts.slice(0, i).join('/'));
+  }
+}
 function fileView(parent, id, label, trail = [], es = [], expand = true) {
+  // References remain evidence of a matching selected edge, even if the target has no outgoing sites.
+  if (hideUnmatched && !es.length && !matchingFiles.has(id)) return;
   const {li, row} = makeRow(parent), cycle = trail.includes(id);
   row.append(button(label, '查看引用证据：' + label, () => evidence(id, es), 'label'));
   const hiddenBadges = new Set(hiddenObservability);
   for (const [type] of observabilityTypes) {
-    if (nodes[id].observability?.[type]?.length) hiddenBadges.add(type);
+    if (observationPoints(id, type).length) hiddenBadges.add(type);
   }
   for (const text of observabilityLabels(id, hiddenBadges)) badge(row, text);
   const isSource = nodes[id].kind === 'file' && expand && !cycle;
@@ -252,6 +303,7 @@ function externalView(parent, dir) {
   }
 }
 function directoryView(parent, dir, paint) {
+  if (hideUnmatched && dir && !matchingDirectories.has(dir)) return;
   const {li, row} = makeRow(parent), folded = closed.has(dir), label = dir.split('/').pop() + '/';
   row.setAttribute('data-directory', dir);
   const toggle = () => { closed.has(dir) ? closed.delete(dir) : closed.add(dir); render(); };
@@ -350,9 +402,11 @@ function renderResourceFilters() {
 function renderObservabilityFilters() {
   const controls = $('observabilityButtons');
   controls.replaceChildren();
-  for (const [type, label] of observabilityTypes) {
-    const on = !hiddenObservability.has(type);
-    const control = button(label + '(' + observabilityCounts.get(type) + ')', '筛选可观测性：' + label, () => {
+  const choices = observabilityTypes.map(([type, label]) => [type, label, observabilityCounts.get(type)]);
+  for (const [type, label, count] of choices) {
+    if (!count && type.startsWith('analytics:') && !unknownObservationCoverage(type)) continue;
+    const on = !observationHidden(type);
+    const control = button(label + '(' + count + (unknownObservationCoverage(type) ? '；覆盖待确认' : '') + ')', '筛选可观测性：' + label, () => {
       if (hiddenObservability.has(type)) hiddenObservability.delete(type);
       else hiddenObservability.add(type);
       render();
@@ -363,9 +417,16 @@ function renderObservabilityFilters() {
   }
 }
 function render() {
+  updateMatchingTree();
+  $('hideUnmatched').setAttribute('aria-pressed', hideUnmatched);
   renderFilters(); renderResourceFilters(); renderObservabilityFilters(); $('tree').replaceChildren();
   const ul = document.createElement('ul'); $('tree').append(ul); rootDirectories(ul, rootParts);
+  if (hideUnmatched && !matchingFiles.size) {
+    const message = document.createElement('p'); message.className = 'muted';
+    message.textContent = '没有匹配当前全局筛选的节点。'; $('tree').append(message);
+  }
 }
+$('hideUnmatched').onclick = () => { hideUnmatched = !hideUnmatched; render(); };
 $('rawBtn').onclick = () => {
   $('raw').style.display = 'block'; $('tree').style.display = 'none';
   $('rawBtn').setAttribute('aria-pressed', true); $('dep').setAttribute('aria-pressed', false);

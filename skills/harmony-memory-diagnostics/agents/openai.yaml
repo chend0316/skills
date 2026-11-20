@@ -1,0 +1,3 @@
+interface:
+  display_name: "鸿蒙真机内存诊断"
+  short_description: "自动运行鸿蒙真机场景，逐个定位修复内存泄漏，复测有效后逐项提交"

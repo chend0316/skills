@@ -78,7 +78,7 @@ class GeneratorTests(unittest.TestCase):
         data = json.loads(re.search(r'<script id="data" type="application/json">(.*?)</script>', html, re.S)[1])
         self.assertEqual(data['edges'][0]['snippet'], '</script><script>throw 1</script>')
         nav = re.search(r'<nav>(.*?)</nav>', html, re.S)[1]
-        self.assertEqual(re.findall(r'<button[^>]*>(.*?)</button>', nav), ['原始地图', '复制原始地图', '源码地图'])
+        self.assertEqual(re.findall(r'<button[^>]*>(.*?)</button>', nav), ['原始地图', '复制原始地图', '源码地图', '隐藏无匹配节点'])
 
     @unittest.skipUnless(shutil.which('node'), 'Node.js unavailable; syntax/DOM logic checks skipped')
     def test_javascript_and_behavior(self):
